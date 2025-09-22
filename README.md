@@ -96,22 +96,21 @@ Networking inside the pod: containers share the network namespace; they can talk
 
 Both expose simple health endpoints at `/` returning JSON.
 
-## CI Option: Build and Push without Docker Desktop
+## CI Option: Build and Push without Docker Desktop (GHCR)
 
-Use GitHub Actions to build and push images from the repo (no WSL needed):
+Use GitHub Actions to build and push images to GitHub Container Registry (no WSL needed):
 
-- Workflow: `.github/workflows/build-and-push.yml`
-- Triggers: manual (`workflow_dispatch`)
-- Registries:
-  - Docker Hub: set repo secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (Access Token)
-  - GHCR: uses the built-in `GITHUB_TOKEN` (no extra secret required)
+- Workflow: `.github/workflows/build-and-push.yml` (GHCR only)
+- Trigger: manual (`workflow_dispatch`)
+- Registry: GHCR (`ghcr.io`) using the built-in `GITHUB_TOKEN` (no extra secret required)
 
 Run the workflow (Actions tab → Build and Push Images) and choose whether to push to Docker Hub and/or GHCR. Resulting tags:
 
-- Docker Hub: `DOCKERHUB_USERNAME/service-a:latest`, `...:sha-<shortsha>` and same for `service-b`.
 - GHCR: `ghcr.io/<org-or-user>/service-a:latest`, `...:sha-<shortsha>` and same for `service-b`.
 
 Use these image names in your Runpod Pod Template.
+
+Note: This workflow no longer pushes to Docker Hub. If you also want Docker Hub pushes, let me know and I can add a separate workflow file for it.
 
 ### CI Smoke Tests
 

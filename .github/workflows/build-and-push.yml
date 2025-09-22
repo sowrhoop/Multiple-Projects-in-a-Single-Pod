@@ -1,18 +1,7 @@
-name: Build and Push Images
+name: Build and Push Images (GHCR)
 
 on:
   workflow_dispatch:
-    inputs:
-      push_to_dockerhub:
-        description: "Push to Docker Hub (requires secrets)"
-        type: choice
-        options: ["true", "false"]
-        default: "true"
-      push_to_ghcr:
-        description: "Push to GitHub Container Registry (GHCR)"
-        type: choice
-        options: ["true", "false"]
-        default: "true"
 
 jobs:
   test:
@@ -74,54 +63,8 @@ jobs:
           docker rm -f svc-a || true
           docker rm -f svc-b || true
 
-  dockerhub:
-    needs: test
-    if: ${{ inputs.push_to_dockerhub == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-    runs-on: ubuntu-latest
-    env:
-      REPO_PREFIX: ${{ secrets.DOCKERHUB_USERNAME }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Short SHA
-        id: meta
-        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push service-a
-        uses: docker/build-push-action@v5
-        with:
-          context: services/service-a
-          file: services/service-a/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ env.REPO_PREFIX }}/service-a:latest
-            ${{ env.REPO_PREFIX }}/service-a:sha-${{ steps.meta.outputs.short }}
-
-      - name: Build and push service-b
-        uses: docker/build-push-action@v5
-        with:
-          context: services/service-b
-          file: services/service-b/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ env.REPO_PREFIX }}/service-b:latest
-            ${{ env.REPO_PREFIX }}/service-b:sha-${{ steps.meta.outputs.short }}
-
   ghcr:
     needs: test
-    if: ${{ inputs.push_to_ghcr == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
