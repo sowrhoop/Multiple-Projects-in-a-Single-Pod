@@ -4,7 +4,6 @@
   "private": true,
   "main": "server.js",
   "license": "MIT",
-  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
@@ -12,4 +11,3 @@
     "express": "^4.19.2"
   }
 }
-

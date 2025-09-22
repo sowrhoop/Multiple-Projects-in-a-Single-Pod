@@ -15,7 +15,67 @@ on:
         default: "true"
 
 jobs:
+  test:
+    name: Build and Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build service-a (local image)
+        uses: docker/build-push-action@v5
+        with:
+          context: services/service-a
+          file: services/service-a/Dockerfile
+          load: true
+          push: false
+          platforms: linux/amd64
+          tags: local/service-a:ci
+
+      - name: Build service-b (local image)
+        uses: docker/build-push-action@v5
+        with:
+          context: services/service-b
+          file: services/service-b/Dockerfile
+          load: true
+          push: false
+          platforms: linux/amd64
+          tags: local/service-b:ci
+
+      - name: Run service-a
+        run: |
+          docker run -d --rm --name svc-a -p 8000:8000 local/service-a:ci
+      - name: Run service-b
+        run: |
+          docker run -d --rm --name svc-b -p 3000:3000 local/service-b:ci
+
+      - name: Wait for services
+        run: |
+          tries=50
+          until curl -fsS http://localhost:8000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
+          tries=50
+          until curl -fsS http://localhost:3000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
+
+      - name: Smoke test responses
+        run: |
+          set -e
+          curl -fsS http://localhost:8000/ | tee /tmp/a.json
+          curl -fsS http://localhost:3000/ | tee /tmp/b.json
+          echo OK
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker logs svc-a || true
+          docker logs svc-b || true
+          docker rm -f svc-a || true
+          docker rm -f svc-b || true
+
   dockerhub:
+    needs: test
     if: ${{ inputs.push_to_dockerhub == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
     runs-on: ubuntu-latest
     env:
@@ -60,6 +120,7 @@ jobs:
             ${{ env.REPO_PREFIX }}/service-b:sha-${{ steps.meta.outputs.short }}
 
   ghcr:
+    needs: test
     if: ${{ inputs.push_to_ghcr == 'true' }}
     runs-on: ubuntu-latest
     permissions:
@@ -106,4 +167,3 @@ jobs:
           tags: |
             ${{ env.REPO_PREFIX }}/service-b:latest
             ${{ env.REPO_PREFIX }}/service-b:sha-${{ steps.meta.outputs.short }}
-

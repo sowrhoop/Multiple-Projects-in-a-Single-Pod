@@ -113,6 +113,22 @@ Run the workflow (Actions tab → Build and Push Images) and choose whether to p
 
 Use these image names in your Runpod Pod Template.
 
+### CI Smoke Tests
+
+The workflow first builds the images locally on the runner and runs both containers, curling `/` on ports 8000 and 3000. Only if this passes do pushes occur. Logs are printed on failure for quick diagnosis.
+
+Local smoke tests (optional):
+
+```sh
+# If you have Docker locally
+docker build -t local/service-a:ci services/service-a && docker run -d --rm -p 8000:8000 --name svc-a local/service-a:ci
+docker build -t local/service-b:ci services/service-b && docker run -d --rm -p 3000:3000 --name svc-b local/service-b:ci
+
+./scripts/smoke-test.sh
+
+docker rm -f svc-a svc-b
+```
+
 ## Fallback: Single Image in One Container
 
 If your account does not support multi-container pods, use the single-image fallback:
