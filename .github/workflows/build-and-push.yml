@@ -47,22 +47,3 @@ jobs:
           tags: |
             ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services:latest
             ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services:${{ github.sha }}
-
-      - name: Login to Docker Hub (optional)
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push to Docker Hub (optional)
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.supervisor
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/two-services:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/two-services:${{ github.sha }}

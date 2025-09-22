@@ -30,18 +30,16 @@ curl http://localhost:8080/
 curl http://localhost:9090/
 ```
 
-## CI: Build and push to Docker Hub
+## CI: Build and push to GHCR
 
-The workflow builds and pushes the combined image using Docker Hub credentials.
+The workflow builds and pushes the combined image to GitHub Container Registry (GHCR) using the built-in `GITHUB_TOKEN`.
 
-- Set repository secrets:
-  - `DOCKERHUB_USERNAME`
-  - `DOCKERHUB_TOKEN` (Docker Hub Access Token)
-- Push to `main` or trigger manually. The workflow tags:
-  - `${DOCKERHUB_USERNAME}/two-services:latest`
-  - `${DOCKERHUB_USERNAME}/two-services:${GITHUB_SHA}`
+- Trigger: push to `main`/`master` (affected paths) or manual dispatch.
+- Resulting tags:
+  - `ghcr.io/<owner>/two-services:latest`
+  - `ghcr.io/<owner>/two-services:${GITHUB_SHA}`
 
-File: `.github/workflows/build-and-push.yml`
+Workflow file: `.github/workflows/build-and-push.yml`
 
 ## Run on Runpod (Single Pod, Single Image)
 
