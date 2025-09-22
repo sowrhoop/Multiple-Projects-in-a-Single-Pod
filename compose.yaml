@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  service-a:
+    build: ./services/service-a
+    image: your-dockerhub-username/service-a:latest
+    environment:
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - shared-data:/shared
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  service-b:
+    build: ./services/service-b
+    image: your-dockerhub-username/service-b:latest
+    environment:
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - service-a
+    volumes:
+      - shared-data:/shared
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  shared-data:
+
