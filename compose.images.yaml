@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   service-a:
-    build: ./services/service-a
-    image: your-dockerhub-username/service-a:latest
+    image: YOUR_DOCKERHUB_USER/service-a:latest
     environment:
       - PORT=8000
     ports:
@@ -14,17 +13,12 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    volumes:
-      - shared-data:/shared
-    # GPU for local compose (if needed):
-    # device_requests:
-    #   - driver: nvidia
-    #     count: 1
-    #     capabilities: ["gpu"]
+    # Optional shared volume mount for local dev
+    # volumes:
+    #   - shared-data:/shared
 
   service-b:
-    build: ./services/service-b
-    image: your-dockerhub-username/service-b:latest
+    image: YOUR_DOCKERHUB_USER/service-b:latest
     environment:
       - PORT=3000
     ports:
@@ -38,13 +32,9 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    volumes:
-      - shared-data:/shared
-    # GPU for local compose (if needed):
-    # device_requests:
-    #   - driver: nvidia
-    #     count: 1
-    #     capabilities: ["gpu"]
+    # volumes:
+    #   - shared-data:/shared
 
-volumes:
-  shared-data:
+# volumes:
+#   shared-data:
+

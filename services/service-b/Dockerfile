@@ -2,6 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+RUN apk add --no-cache curl
+
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install --no-audit --no-fund
 
@@ -11,4 +13,3 @@ ENV PORT=3000
 EXPOSE 3000
 
 CMD ["node", "server.js"]
-

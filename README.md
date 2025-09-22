@@ -82,3 +82,13 @@ If your account does not support multi-container pods, use the single-image fall
 1. Build and push: `docker build -f Dockerfile.supervisor -t your-username/two-in-one:latest . && docker push your-username/two-in-one:latest`
 2. In the Pod Template, set image to `your-username/two-in-one:latest` and expose `8000` and `3000`.
 3. Launch the pod.
+
+## Extras: Ports, Healthchecks, GPU
+
+- Ports via Supervisor: you can set `SERVICE_A_PORT` and `SERVICE_B_PORT` env vars on the single-image (Supervisor) container to change default ports (8000/3000). `supervisord.conf` reads these at runtime.
+- Healthchecks: `compose.yaml` and `compose.images.yaml` include HTTP healthchecks on `/`. They require `curl`, which is installed in both service images.
+- GPU images: for single-image (Supervisor) usage, GPU-enabled alternatives are provided:
+  - `Dockerfile.supervisor.gpu` (monorepo)
+  - `Dockerfile.supervisor.multirepo.gpu` (multi-repo)
+  - `services/service-a/Dockerfile.gpu` (if Service A needs CUDA runtime)
+  Use these only if you need GPU libraries inside the container. On Runpod, assigning a GPU to the pod exposes it to both containers; Node usually doesn’t require a CUDA base.
