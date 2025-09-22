@@ -1,6 +1,6 @@
 FROM debian:bookworm-slim
 
-ENV DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -9,26 +9,30 @@ RUN apt-get update \
     nodejs \
     npm \
     supervisor \
+    curl \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/services
 
-# Service A (Python)
+# Copy monorepo services
 COPY services/service-a/ /opt/services/service-a/
-RUN pip3 install --no-cache-dir -r /opt/services/service-a/requirements.txt
+RUN if [ -f /opt/services/service-a/requirements.txt ]; then \
+      pip3 install --no-cache-dir -r /opt/services/service-a/requirements.txt; \
+    fi
 
-# Service B (Node)
-WORKDIR /opt/services/service-b
-COPY services/service-b/package*.json ./
-RUN npm ci || npm install --no-audit --no-fund
 COPY services/service-b/ /opt/services/service-b/
+RUN if [ -f /opt/services/service-b/package.json ]; then \
+      cd /opt/services/service-b && (npm ci || npm install --no-audit --no-fund); \
+    fi
 
 # Supervisor config
-WORKDIR /opt/services
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY healthcheck.sh /healthcheck.sh
+RUN chmod +x /healthcheck.sh
 
-EXPOSE 8000 3000
+EXPOSE 8080 9090
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD /healthcheck.sh || exit 1
 
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

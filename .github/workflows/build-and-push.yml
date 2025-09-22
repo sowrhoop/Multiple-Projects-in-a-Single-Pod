@@ -1,116 +1,25 @@
-name: Build and Push Images (GHCR)
+name: Build and Push (Supervisor Image)
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'Dockerfile.supervisor'
+      - 'supervisord.conf'
+      - 'services/service-a/**'
+      - 'services/service-b/**'
+      - '.github/workflows/build-and-push.yml'
+  workflow_dispatch: {}
 
 jobs:
-  test:
-    name: Build and Smoke Test
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build service-a (local image)
-        uses: docker/build-push-action@v5
-        with:
-          context: services/service-a
-          file: services/service-a/Dockerfile
-          load: true
-          push: false
-          platforms: linux/amd64
-          tags: local/service-a:ci
-
-      - name: Build service-b (local image)
-        uses: docker/build-push-action@v5
-        with:
-          context: services/service-b
-          file: services/service-b/Dockerfile
-          load: true
-          push: false
-          platforms: linux/amd64
-          tags: local/service-b:ci
-
-      - name: Run service-a
-        run: |
-          docker run -d --rm --name svc-a -p 8000:8000 local/service-a:ci
-      - name: Run service-b
-        run: |
-          docker run -d --rm --name svc-b -p 3000:3000 local/service-b:ci
-
-      - name: Wait for services
-        run: |
-          tries=50
-          until curl -fsS http://localhost:8000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
-          tries=50
-          until curl -fsS http://localhost:3000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
-
-      - name: Smoke test responses
-        run: |
-          set -e
-          curl -fsS http://localhost:8000/ | tee /tmp/a.json
-          curl -fsS http://localhost:3000/ | tee /tmp/b.json
-          echo OK
-
-      - name: Tear down
-        if: always()
-        run: |
-          docker logs svc-a || true
-          docker logs svc-b || true
-          docker rm -f svc-a || true
-          docker rm -f svc-b || true
-
-      - name: Build combined supervisor image (local)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.supervisor
-          load: true
-          push: false
-          platforms: linux/amd64
-          tags: local/two-in-one:ci
-
-      - name: Run combined image (Supervisor)
-        run: |
-          docker run -d --rm \
-            --name svc-both \
-            -e SERVICE_A_PORT=18000 \
-            -e SERVICE_B_PORT=13000 \
-            -p 18000:18000 -p 13000:13000 \
-            local/two-in-one:ci
-
-      - name: Wait for combined services
-        run: |
-          tries=60
-          until curl -fsS http://localhost:18000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
-          tries=60
-          until curl -fsS http://localhost:13000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
-
-      - name: Smoke test combined responses
-        run: |
-          curl -fsS http://localhost:18000/ | tee /tmp/a2.json
-          curl -fsS http://localhost:13000/ | tee /tmp/b2.json
-
-      - name: Tear down combined
-        if: always()
-        run: |
-          docker logs svc-both || true
-          docker rm -f svc-both || true
-
-  ghcr:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    env:
-      REPO_PREFIX: ghcr.io/${{ github.repository_owner }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -122,39 +31,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Short SHA
-        id: meta
-        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - name: Extract owner for GHCR
+        id: ghcr
+        run: |
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push service-a
-        uses: docker/build-push-action@v5
-        with:
-          context: services/service-a
-          file: services/service-a/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ env.REPO_PREFIX }}/service-a:latest
-            ${{ env.REPO_PREFIX }}/service-a:sha-${{ steps.meta.outputs.short }}
-
-      - name: Build and push service-b
-        uses: docker/build-push-action@v5
-        with:
-          context: services/service-b
-          file: services/service-b/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ env.REPO_PREFIX }}/service-b:latest
-            ${{ env.REPO_PREFIX }}/service-b:sha-${{ steps.meta.outputs.short }}
-
-      - name: Build and push two-in-one (Supervisor)
-        uses: docker/build-push-action@v5
+      - name: Build and push to GHCR
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.supervisor
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ env.REPO_PREFIX }}/two-in-one:latest
-            ${{ env.REPO_PREFIX }}/two-in-one:sha-${{ steps.meta.outputs.short }}
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services:latest
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services:${{ github.sha }}
+
+      - name: Login to Docker Hub (optional)
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push to Docker Hub (optional)
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.supervisor
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/two-services:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/two-services:${{ github.sha }}
