@@ -1,21 +1,18 @@
-# Runpod Mimic: Two Projects in One Pod
+# Runpod: Two Projects in One Single Pod
 
-This repo demonstrates two ways to run two different projects (each with its own Dockerfile) inside a single Runpod pod:
-
-- Option A: Single container image that runs both processes via Supervisor (works on any Runpod Pod).
-- Option B: Two separate containers orchestrated by Docker Compose (works if your Mimic setup allows multi-container pods or Docker-in-Docker).
+This repo is prepared to run two different Dockerized projects inside a single Runpod.io pod using two containers in that pod.
 
 ## Layout
 
 - `services/service-a` — Python FastAPI on port 8000
 - `services/service-b` — Node.js Express on port 3000
-- `Dockerfile.supervisor` — Single image that runs both services together
-- `supervisord.conf` — Process manager config
-- `compose.yaml` — Multi-container option for environments that allow Compose
+- `Dockerfile.supervisor` — Optional single image that runs both services together (fallback)
+- `supervisord.conf` — Process manager config (used by the optional single image)
+- `compose.yaml` — Optional (for local dev only)
 
 ## Build and test locally
 
-Single image with both services:
+Optional single image with both services (fallback):
 
 ```sh
 docker build -f Dockerfile.supervisor -t your-username/two-in-one:latest .
@@ -25,7 +22,7 @@ curl http://localhost:8000/
 curl http://localhost:3000/
 ```
 
-Compose (two containers locally):
+Compose (optional for local dev):
 
 ```sh
 docker compose up --build
@@ -47,29 +44,29 @@ docker build -t your-username/service-b:latest services/service-b
 docker push your-username/service-b:latest
 ```
 
-## Run on Runpod
+## Run on Runpod (Single Pod, Two Containers)
 
-### Option A — Single container (recommended)
+1. Build and push the two images from this repo:
+   - `docker build -t your-username/service-a:latest services/service-a`
+   - `docker push your-username/service-a:latest`
+   - `docker build -t your-username/service-b:latest services/service-b`
+   - `docker push your-username/service-b:latest`
 
-1. In Runpod, create a Pod Template.
-2. Set Container Image to `your-username/two-in-one:latest` (built from `Dockerfile.supervisor`).
-3. Expose ports `8000` and `3000` in the template (so you can reach both services).
-4. Launch the pod; both services start under Supervisor.
+2. In Runpod, create a Pod Template (Single Pod):
+   - Add Container 1
+     - Image: `your-username/service-a:latest`
+     - Expose port: `8000`
+     - Environment (optional): `PORT=8000`
+   - Add Container 2
+     - Image: `your-username/service-b:latest`
+     - Expose port: `3000`
+     - Environment (optional): `PORT=3000`
+   - Optional shared volume: mount to `/shared` in both containers.
+   - GPU (if needed): assign the GPU to the pod; both containers will see it.
 
-Notes:
-- If you need GPU libraries, base your image on an NVIDIA CUDA or Runpod base and install Python/Node accordingly.
-- Supervisor restarts services on crash and streams logs to stdout/stderr.
+3. Launch a pod from the template. You’ll get endpoints for each exposed port.
 
-### Option B — Mimic with multiple containers
-
-If your Runpod Mimic environment supports running multiple containers in a single pod:
-
-1. Build and push both images: `your-username/service-a:latest` and `your-username/service-b:latest`.
-2. In Mimic, add both containers to the pod (or import `compose.yaml` if supported).
-3. Map ports `8000` and `3000` and, if needed, attach a shared volume to `/shared` for both.
-4. If GPUs are required, ensure each container requests GPU resources.
-
-If Mimic does not support multi-container pods in your account, fall back to Option A.
+Networking inside the pod: containers share the network namespace; they can talk to each other via `localhost` on their ports (e.g., Service A can call `http://localhost:3000/`).
 
 ## Services
 
@@ -78,3 +75,10 @@ If Mimic does not support multi-container pods in your account, fall back to Opt
 
 Both expose simple health endpoints at `/` returning JSON.
 
+## Fallback: Single Image in One Container
+
+If your account does not support multi-container pods, use the single-image fallback:
+
+1. Build and push: `docker build -f Dockerfile.supervisor -t your-username/two-in-one:latest . && docker push your-username/two-in-one:latest`
+2. In the Pod Template, set image to `your-username/two-in-one:latest` and expose `8000` and `3000`.
+3. Launch the pod.
