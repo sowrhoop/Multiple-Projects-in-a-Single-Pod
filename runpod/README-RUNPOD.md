@@ -1,42 +1,34 @@
-# Runpod Single Pod, Two Containers
+# Runpod: Single Pod Running Two Services
 
-This guide uses Runpod’s Pod Template UI to run two containers (two separate images) in one pod.
+Runpod Pods run one container image. To run two services in a single Pod, use a combined image that starts both processes (via Supervisor). Alternatively, run two separate Pods.
 
 ## Build and Push Images
 
-- Service A (FastAPI 8000):
-  - `docker build -t YOUR_USER/service-a:latest services/service-a`
-  - `docker push YOUR_USER/service-a:latest`
-- Service B (Express 3000):
-  - `docker build -t YOUR_USER/service-b:latest services/service-b`
-  - `docker push YOUR_USER/service-b:latest`
+- Combined image (Supervisor):
+  - `docker build -f Dockerfile.supervisor -t ghcr.io/<owner>/two-in-one:latest .`
+  - `docker push ghcr.io/<owner>/two-in-one:latest`
+- Or use the CI workflow which also pushes `service-a` and `service-b` images.
 
-## Create Pod Template
+## Create Pod Template (Combined Image)
 
 1. Open Runpod Dashboard → Templates → Create Pod Template.
-2. Add Container 1:
-   - Image: `YOUR_USER/service-a:latest`
-   - Expose port: `8000`
-   - Env (optional): `PORT=8000`
-3. Add Container 2:
-   - Image: `YOUR_USER/service-b:latest`
-   - Expose port: `3000`
-   - Env (optional): `PORT=3000`
-4. Optional: Add a shared volume mounted to `/shared` in both containers.
-5. GPU (optional): assign GPU to the pod if needed by your apps.
-6. Save the template and launch a pod.
+2. Image: `ghcr.io/<owner>/two-in-one:latest` (or your registry path).
+3. Expose ports: `8000` and `3000`.
+4. Optional env: `SERVICE_A_PORT=8000`, `SERVICE_B_PORT=3000` (change if needed).
+5. Optional volume: mount to `/shared`.
+6. GPU (optional): assign GPU to the pod if your apps require it.
 
 ## Validate
 
-- External check:
+- External:
   - `curl https://<pod-endpoint-for-8000>/` → JSON from Service A
   - `curl https://<pod-endpoint-for-3000>/` → JSON from Service B
-- Internal check (from console of either container):
+- Internal (from container console):
   - `curl http://localhost:8000/` and `curl http://localhost:3000/`
 
 ## Notes
 
-- Both images listen on `PORT` env var (default 8000/3000). Override if you prefer different ports.
-- Containers in a single pod share the network namespace; use `localhost` for inter-service calls.
-- If multi-container isn’t available for your account, use the fallback single-image approach in the root `README.md`.
+- The combined image starts both processes; they listen on `SERVICE_A_PORT` (default 8000) and `SERVICE_B_PORT` (default 3000).
+- Inside the container, processes share the same network namespace; use `localhost` between them.
+- If you prefer isolation, run two Pods and use Public Endpoints (or Runpod networking features) for inter‑service traffic.
 

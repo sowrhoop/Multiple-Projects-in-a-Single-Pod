@@ -63,6 +63,43 @@ jobs:
           docker rm -f svc-a || true
           docker rm -f svc-b || true
 
+      - name: Build combined supervisor image (local)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.supervisor
+          load: true
+          push: false
+          platforms: linux/amd64
+          tags: local/two-in-one:ci
+
+      - name: Run combined image (Supervisor)
+        run: |
+          docker run -d --rm \
+            --name svc-both \
+            -e SERVICE_A_PORT=18000 \
+            -e SERVICE_B_PORT=13000 \
+            -p 18000:18000 -p 13000:13000 \
+            local/two-in-one:ci
+
+      - name: Wait for combined services
+        run: |
+          tries=60
+          until curl -fsS http://localhost:18000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
+          tries=60
+          until curl -fsS http://localhost:13000/ >/dev/null; do ((tries--)); [[ $tries -eq 0 ]] && exit 1; sleep 0.5; done
+
+      - name: Smoke test combined responses
+        run: |
+          curl -fsS http://localhost:18000/ | tee /tmp/a2.json
+          curl -fsS http://localhost:13000/ | tee /tmp/b2.json
+
+      - name: Tear down combined
+        if: always()
+        run: |
+          docker logs svc-both || true
+          docker rm -f svc-both || true
+
   ghcr:
     needs: test
     runs-on: ubuntu-latest
@@ -110,3 +147,14 @@ jobs:
           tags: |
             ${{ env.REPO_PREFIX }}/service-b:latest
             ${{ env.REPO_PREFIX }}/service-b:sha-${{ steps.meta.outputs.short }}
+
+      - name: Build and push two-in-one (Supervisor)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.supervisor
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REPO_PREFIX }}/two-in-one:latest
+            ${{ env.REPO_PREFIX }}/two-in-one:sha-${{ steps.meta.outputs.short }}
