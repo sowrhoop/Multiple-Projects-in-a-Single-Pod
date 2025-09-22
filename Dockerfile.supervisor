@@ -29,10 +29,11 @@ RUN if [ -f /opt/services/service-b/package.json ]; then \
 # Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY healthcheck.sh /healthcheck.sh
-RUN chmod +x /healthcheck.sh
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /healthcheck.sh /entrypoint.sh
 
 EXPOSE 8080 9090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD /healthcheck.sh || exit 1
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -44,7 +44,7 @@ Workflow file: `.github/workflows/build-and-push.yml`
 ## Run on Runpod (Single Pod, Single Image)
 
 - Image: `your-username/two-services:latest` (or `ghcr.io/<owner>/two-services:latest` if using GHCR)
-- Expose ports: `8080` and `9090` (or override via env: `SERVICE_A_PORT`, `SERVICE_B_PORT`)
+- Expose ports: `8080` and `9090` (you can override via env: `SERVICE_A_PORT`, `SERVICE_B_PORT` — they must be different)
 - Optional: SSH into the pod and manage processes independently with supervisorctl:
   - `supervisorctl status`
   - `supervisorctl restart project1`
@@ -56,9 +56,11 @@ Workflow file: `.github/workflows/build-and-push.yml`
 - Inter‑process communication (if needed) is over `localhost` via their ports.
 - If you still want two separate containers (one per service) instead of a combined image, you can use the individual service Dockerfiles in `services/` and deploy them as two pods.
 
-### Healthcheck
+### Health & Port Enforcement
 
 The combined image defines a Docker `HEALTHCHECK` that pings both endpoints:
 - `http://localhost:${SERVICE_A_PORT:-8080}/`
 - `http://localhost:${SERVICE_B_PORT:-9090}/`
 If either is down, the container is marked unhealthy.
+
+The container entrypoint enforces unique ports and exits with an error if `SERVICE_A_PORT` equals `SERVICE_B_PORT`.
