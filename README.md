@@ -64,3 +64,20 @@ The combined image defines a Docker `HEALTHCHECK` that pings both endpoints:
 If either is down, the container is marked unhealthy.
 
 The container entrypoint enforces unique ports and exits with an error if `SERVICE_A_PORT` equals `SERVICE_B_PORT`.
+
+### Isolation Hardening
+
+- Separate UNIX users per service in the combined image (`svc_a`, `svc_b`) with directory ownership restricted (chmod 750) so services cannot read each other’s code/data.
+- Each standalone service image also runs as a non‑root user by default.
+- For extra isolation at runtime, consider running the container with a read‑only root filesystem and explicit writable dirs:
+
+  ```sh
+  docker run --rm \
+    --read-only \
+    -v svc_a_tmp:/home/svc_a \
+    -v svc_b_tmp:/home/svc_b \
+    -p 8080:8080 -p 9090:9090 \
+    ghcr.io/<owner>/two-services:latest
+  ```
+
+  On Runpod, mount persistent volumes to the same paths as writable homes if your apps need to write.
