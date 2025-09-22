@@ -41,6 +41,14 @@ The workflow builds and pushes the combined image to GitHub Container Registry (
 
 Workflow file: `.github/workflows/build-and-push.yml`
 
+If your repository is under an organization and you see a permissions error like “installation not allowed to Create organization package”, you have two options:
+
+- Ask an org admin to enable package publishing for Actions: Organization Settings → Packages → “Allow GitHub Actions to create and publish packages”. Also ensure the workflow has `permissions: packages: write` (already set here).
+- Or use a Personal Access Token (PAT) with `write:packages` scope from a user with publish rights, and add repo secrets:
+  - `GHCR_PAT` → the PAT value
+  - `GHCR_USERNAME` → the username tied to that PAT (optional; defaults to `github.actor`)
+  The workflow will prefer the PAT if present.
+
 ## Run on Runpod (Single Pod, Single Image)
 
 - Image: `your-username/two-services:latest` (or `ghcr.io/<owner>/two-services:latest` if using GHCR)
