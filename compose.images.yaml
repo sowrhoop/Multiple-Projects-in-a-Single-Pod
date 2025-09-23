@@ -5,22 +5,33 @@ services:
     image: YOUR_DOCKERHUB_USER/service-a:latest
     environment:
       - PORT=8000
+      - NODE_ENV=production
     ports:
       - "8000:8000"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    # Optional shared volume mount for local dev
-    # volumes:
-    #   - shared-data:/shared
+    # Hardened container runtime
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 1024
+        hard: 2048
+    restart: unless-stopped
+    networks:
+      - svc_a_net
 
   service-b:
     image: YOUR_DOCKERHUB_USER/service-b:latest
     environment:
       - PORT=3000
+      - NODE_ENV=production
     ports:
       - "3000:3000"
     depends_on:
@@ -28,13 +39,25 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:3000/ || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    # volumes:
-    #   - shared-data:/shared
+    # Hardened container runtime
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 1024
+        hard: 2048
+    restart: unless-stopped
+    networks:
+      - svc_b_net
 
-# volumes:
-#   shared-data:
-
+networks:
+  svc_a_net:
+    internal: true
+  svc_b_net:
+    internal: true

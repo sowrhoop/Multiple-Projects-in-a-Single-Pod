@@ -50,4 +50,8 @@ EXPOSE 8080 9090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD /healthcheck.sh || exit 1
 
+LABEL org.opencontainers.image.title="two-services supervisor (monorepo)" \
+      org.opencontainers.image.description="Supervisor image running service-a (Python) and service-b (Node.js) from monorepo with user separation and healthcheck" \
+      org.opencontainers.image.licenses="MIT"
+
 ENTRYPOINT ["/entrypoint.sh"]

@@ -3,6 +3,8 @@ name: Build and Push (Supervisor Image)
 permissions:
   contents: read
   packages: write
+  id-token: write
+  security-events: write
 
 on:
   push:
@@ -15,12 +17,19 @@ on:
       - '.github/workflows/build-and-push.yml'
   workflow_dispatch: {}
 
+concurrency:
+  group: build-supervisor-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -41,13 +50,59 @@ jobs:
           OWNER="${GITHUB_REPOSITORY%%/*}"
           echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
 
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+          labels: |
+            org.opencontainers.image.title=two-services supervisor
+            org.opencontainers.image.description=Supervisor image running service-a (Python) and service-b (Node.js)
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
       - name: Build and push to GHCR
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.supervisor
           push: true
           platforms: linux/amd64
-          tags: |
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services:latest
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless via OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_NAME: ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services
+        run: |
+          cosign sign --yes ${IMAGE_NAME}@${IMAGE_DIGEST}
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ steps.ghcr.outputs.owner }}/two-services@${{ steps.build.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload Trivy report to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif

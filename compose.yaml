@@ -6,6 +6,7 @@ services:
     image: your-dockerhub-username/service-a:latest
     environment:
       - PORT=8000
+      - NODE_ENV=production
     ports:
       - "8000:8000"
     healthcheck:
@@ -14,8 +15,22 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    volumes:
-      - shared-data:/shared
+    # Hardened container runtime
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 1024
+        hard: 2048
+    restart: unless-stopped
+    networks:
+      - svc_a_net
     # GPU for local compose (if needed):
     # device_requests:
     #   - driver: nvidia
@@ -27,6 +42,7 @@ services:
     image: your-dockerhub-username/service-b:latest
     environment:
       - PORT=3000
+      - NODE_ENV=production
     ports:
       - "3000:3000"
     depends_on:
@@ -38,13 +54,30 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    volumes:
-      - shared-data:/shared
+    # Hardened container runtime
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 1024
+        hard: 2048
+    restart: unless-stopped
+    networks:
+      - svc_b_net
     # GPU for local compose (if needed):
     # device_requests:
     #   - driver: nvidia
     #     count: 1
     #     capabilities: ["gpu"]
 
-volumes:
-  shared-data:
+networks:
+  svc_a_net:
+    internal: true
+  svc_b_net:
+    internal: true
