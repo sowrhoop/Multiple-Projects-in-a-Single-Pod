@@ -16,8 +16,8 @@ COPY . .
 # Ensure ownership for runtime user
 RUN chown -R appuser:app /app
 
-ENV PORT=3000
-EXPOSE 3000
+ENV PORT=9090
+EXPOSE 9090
 
 USER appuser
 

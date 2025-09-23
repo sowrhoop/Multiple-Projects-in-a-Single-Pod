@@ -1,6 +1,6 @@
 Param(
-  [Parameter(Mandatory=$false)][string] $BaseA = "http://localhost:8000",
-  [Parameter(Mandatory=$false)][string] $BaseB = "http://localhost:3000"
+  [Parameter(Mandatory=$false)][string] $BaseA = "http://localhost:8080",
+  [Parameter(Mandatory=$false)][string] $BaseB = "http://localhost:9090"
 )
 
 Write-Host "Checking $BaseA/"
@@ -18,4 +18,3 @@ try {
 }
 
 Write-Host "Smoke tests passed"
-

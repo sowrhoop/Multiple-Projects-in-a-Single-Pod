@@ -17,10 +17,10 @@ COPY app.py ./
 # Ensure ownership for runtime user
 RUN chown -R appuser:appuser /app
 
-ENV PORT=8000
-EXPOSE 8000
+ENV PORT=8080
+EXPOSE 8080
 
 USER appuser
 
 # Respect PORT env with a sensible default
-CMD ["/bin/sh", "-lc", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["/bin/sh", "-lc", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}"]

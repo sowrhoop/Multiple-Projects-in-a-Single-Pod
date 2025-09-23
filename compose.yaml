@@ -5,12 +5,12 @@ services:
     build: ./services/service-a
     image: your-dockerhub-username/service-a:latest
     environment:
-      - PORT=8000
+      - PORT=8080
       - NODE_ENV=production
     ports:
-      - "8000:8000"
+      - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -30,7 +30,7 @@ services:
         hard: 2048
     restart: unless-stopped
     networks:
-      - svc_a_net
+      - backend
     # GPU for local compose (if needed):
     # device_requests:
     #   - driver: nvidia
@@ -41,15 +41,16 @@ services:
     build: ./services/service-b
     image: your-dockerhub-username/service-b:latest
     environment:
-      - PORT=3000
+      - PORT=9090
       - NODE_ENV=production
+      - SERVICE_A_URL=http://service-a:8080
     ports:
-      - "3000:3000"
+      - "9090:9090"
     depends_on:
       service-a:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9090/ || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -69,7 +70,7 @@ services:
         hard: 2048
     restart: unless-stopped
     networks:
-      - svc_b_net
+      - backend
     # GPU for local compose (if needed):
     # device_requests:
     #   - driver: nvidia
@@ -77,7 +78,5 @@ services:
     #     capabilities: ["gpu"]
 
 networks:
-  svc_a_net:
-    internal: true
-  svc_b_net:
+  backend:
     internal: true

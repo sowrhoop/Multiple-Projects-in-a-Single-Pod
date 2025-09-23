@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Two-Services Demo</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.45; }
+      header { margin-bottom: 1rem; }
+      code { background: rgba(0,0,0,.06); padding: 0 .25rem; border-radius: 4px; }
+      .ok { color: #238636; }
+      .bad { color: #d73a49; }
+      pre { white-space: pre-wrap; word-break: break-word; }
+      .card { border: 1px solid rgba(0,0,0,.15); padding: 1rem; border-radius: 8px; margin: .75rem 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Two-Services Demo</h1>
+      <p>You're looking at <strong>service-b</strong> (Node, Express) on <code>PORT=9090</code>,
+      which also proxies to <strong>service-a</strong> (Python, FastAPI) on <code>PORT=8080</code>.</p>
+    </header>
+
+    <section class="card">
+      <h2>Status</h2>
+      <div id="status">Loading...</div>
+    </section>
+
+    <section class="card">
+      <h2>Service A (proxied)</h2>
+      <button id="refresh">Refresh</button>
+      <pre id="aout">(waiting)</pre>
+    </section>
+
+    <script>
+      async function load() {
+        try {
+          const s = await fetch('/api/status').then(r => r.json());
+          document.getElementById('status').innerHTML =
+            `<span class="${s.status === 'ok' ? 'ok' : 'bad'}">Service B: ${s.status}</span>` +
+            (s.serviceA ? ` | Service A says: <code>${JSON.stringify(s.serviceA)}</code>` : '');
+        } catch (e) {
+          document.getElementById('status').innerHTML = `<span class="bad">Error: ${e}</span>`;
+        }
+      }
+      async function refreshA() {
+        try {
+          const t = await fetch('/api/a').then(r => r.text());
+          document.getElementById('aout').textContent = t;
+        } catch (e) {
+          document.getElementById('aout').textContent = 'Error: ' + e;
+        }
+      }
+      document.getElementById('refresh').addEventListener('click', refreshA);
+      load().then(refreshA);
+    </script>
+  </body>
+  </html>
+
