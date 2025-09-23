@@ -30,6 +30,97 @@ curl http://localhost:8080/
 curl http://localhost:9090/
 ```
 
+## Control & Monitoring
+
+Control each service independently without disturbing the other.
+
+### Combined Image (both services in one container)
+
+The combined image runs both apps under Supervisord with a private UNIX socket for control. Program names:
+- `project1` → Service A (FastAPI, 8080)
+- `project2` → Service B (Express, 9090)
+
+Run with a fixed container name:
+
+```sh
+docker run -d --name two-services -p 8080:8080 -p 9090:9090 your-username/two-services:latest
+```
+
+Operate on services independently:
+
+```sh
+# Overall status
+docker exec -it two-services supervisorctl status
+
+# Stop / start / restart ONLY Service A
+docker exec -it two-services supervisorctl stop project1
+docker exec -it two-services supervisorctl start project1
+docker exec -it two-services supervisorctl restart project1
+
+# Stop / start / restart ONLY Service B
+docker exec -it two-services supervisorctl stop project2
+docker exec -it two-services supervisorctl start project2
+docker exec -it two-services supervisorctl restart project2
+
+# Tail logs per service
+docker exec -it two-services supervisorctl tail -f project1
+docker exec -it two-services supervisorctl tail -f project2
+
+# Get the managed PID of a service
+docker exec -it two-services supervisorctl pid project1
+```
+
+Troubleshooting (combined image):
+- If `unix:///var/run/supervisor.sock no such file` appears, you’re running an older image. Rebuild/pull the latest (socket support is enabled in `supervisord.conf`).
+  ```sh
+  docker build -f Dockerfile.supervisor -t two-services:dev .
+  docker run -d --name two-services -p 8080:8080 -p 9090:9090 two-services:dev
+  ```
+- Verify socket and config in the container:
+  ```sh
+  docker exec -it two-services grep -A2 "\[unix_http_server\]" /etc/supervisor/conf.d/supervisord.conf
+  docker exec -it two-services ls -l /var/run/supervisor.sock
+  ```
+
+### Separate Containers (Docker Compose)
+
+Control services individually when running with Compose:
+
+```sh
+# Build and start everything
+docker compose up -d --build
+
+# Start/stop/restart just one service
+docker compose up -d service-a
+docker compose stop service-b
+docker compose restart service-a
+
+# Logs per service
+docker compose logs -f service-a
+docker compose logs -f service-b
+
+# Status
+docker compose ps
+```
+
+### Local Dev (no Docker)
+
+Start both as independent local processes and stop either one without affecting the other:
+
+```sh
+# PowerShell
+scripts/dev.ps1
+
+# Bash
+scripts/dev.sh
+```
+
+Stop a single service by terminating its process (PowerShell: `Stop-Job`; Bash: `kill <pid>` printed by the script).
+
+### Optional: Supervisor HTTP UI (off by default)
+
+If you prefer a browser-based control panel, we can expose Supervisor’s HTTP interface (e.g., `127.0.0.1:9001`) with basic auth. It’s disabled by default for security. Open an issue or ask to enable it.
+
 ## CI: Build and push to GHCR
 
 The workflow builds and pushes the combined image to GitHub Container Registry (GHCR) using the built-in `GITHUB_TOKEN`.
