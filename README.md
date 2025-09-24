@@ -240,3 +240,23 @@ Actions → Build Service A & B, then Merge → Run workflow
 ```
 
 If the external repos are private, add a `GH_PAT` secret in this repo with `repo` scope so the workflow can check them out.
+
+### Auto-trigger the merge when projects build
+
+To rebuild the merged image whenever either project succeeds:
+- In each project repo (project-1 and project-2) add secret `ORCH_PAT` (a Personal Access Token with `repo` scope).
+- Add the workflow from this repo:
+  - templates/dispatch/project-1-dispatch.yml → project-1/.github/workflows/dispatch-merge.yml
+  - templates/dispatch/project-2-dispatch.yml → project-2/.github/workflows/dispatch-merge.yml
+- These send a `repository_dispatch` to this orchestrator (Supervisor-Image-Combination) after a successful build, using the event type `project-updated`.
+- No changes needed here; the merge workflow already listens for it.
+
+Helper to open PRs that add those workflows automatically (requires `gh`):
+
+```sh
+# Bash
+scripts/add-dispatch-workflows.sh <your_github_user_or_org>
+
+# PowerShell
+scripts/add-dispatch-workflows.ps1 -Owner <your_github_user_or_org>
+```
