@@ -142,7 +142,7 @@ If your repository is under an organization and you see a permissions error like
 
 ## Run on Runpod (Single Pod, Single Image)
 
-- Image: `your-username/two-services:latest` (or `ghcr.io/<owner>/two-services:latest` if using GHCR)
+- Image: `your-username/two-services:latest` (or `ghcr.io/<owner>/two-services:latest` if using GHCR). If you use the multirepo merge workflow, the merged image is published as `ghcr.io/<owner>/supervisor-image-combination:latest`.
 - Expose ports: `8080` and `9090` (you can override via env: `SERVICE_A_PORT`, `SERVICE_B_PORT` — they must be different)
 - Optional: SSH into the pod and manage processes independently with supervisorctl:
   - `supervisorctl status`
@@ -196,7 +196,7 @@ Run the workflow manually (Actions → “Build Service A & B, then Merge”) an
 What it produces in GHCR:
 - `ghcr.io/<owner>/project-1:<sha>` and `:latest`
 - `ghcr.io/<owner>/project-2:<sha>` and `:latest`
-- `ghcr.io/<owner>/two-services:<sha>` and `:latest` (merged Supervisor image)
+- `ghcr.io/<owner>/supervisor-image-combination:<sha>` and `:latest` (merged Supervisor image)
 
 Technical notes:
 - The merged Dockerfiles install Python/Node and re‑install dependencies from the copied app manifests. They don’t try to “copy runtimes” from the source images to avoid libc/base‑image incompatibilities.
