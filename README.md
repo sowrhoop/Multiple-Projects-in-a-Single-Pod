@@ -180,3 +180,63 @@ The container entrypoint enforces unique ports and exits with an error if `SERVI
   ```
 
   On Runpod, mount persistent volumes to the same paths as writable homes if your apps need to write.
+
+## Multirepo: Build Two Images Then Merge
+
+If Service A and Service B live in separate GitHub repos with their own Dockerfiles, this repo can build both images and then produce a combined Supervisor image by copying the app payloads from those two images.
+
+- Dockerfiles: `Dockerfile.supervisor.from-images` (CPU) and `Dockerfile.supervisor.from-images.gpu` (CUDA base)
+- GitHub Action: `.github/workflows/build-two-and-merge.yml`
+
+Run the workflow manually (Actions → “Build Service A & B, then Merge”) and provide inputs:
+- `service_a_repo` (e.g., `yourorg/service-a`), `service_a_ref` (e.g., `main`), `service_a_dockerfile` (path to its Dockerfile)
+- `service_b_repo`, `service_b_ref`, `service_b_dockerfile`
+- `use_gpu_base` (true to use CUDA base in the merged image)
+
+What it produces in GHCR:
+- `ghcr.io/<owner>/project-1:<sha>` and `:latest`
+- `ghcr.io/<owner>/project-2:<sha>` and `:latest`
+- `ghcr.io/<owner>/two-services:<sha>` and `:latest` (merged Supervisor image)
+
+Technical notes:
+- The merged Dockerfiles install Python/Node and re‑install dependencies from the copied app manifests. They don’t try to “copy runtimes” from the source images to avoid libc/base‑image incompatibilities.
+- At runtime you still get independent control via `supervisorctl` as documented above.
+
+### Bootstrap external repos with GitHub CLI
+
+GitHub repo names cannot contain spaces. We’ll use `project-1` and `project-2`.
+
+Requirements:
+- Install and authenticate GitHub CLI: `gh auth login`
+- Have permission to create repos under your user or org
+
+Create the two repos and push the templates:
+
+```sh
+# CPU/Linux/macOS
+scripts/bootstrap-multirepo.sh <your_github_user_or_org> public
+
+# Windows PowerShell
+scripts/bootstrap-multirepo.ps1 -Owner <your_github_user_or_org> -Visibility public
+```
+
+This creates and pushes:
+- `https://github.com/<owner>/project-1` (FastAPI)
+- `https://github.com/<owner>/project-2` (Express)
+
+Each repo includes its own CI to build/push images to GHCR.
+
+Run the merge workflow in this repo:
+
+```text
+Actions → Build Service A & B, then Merge → Run workflow
+  service_a_repo: <owner>/project-1
+  service_a_ref: main
+  service_a_dockerfile: Dockerfile
+  service_b_repo: <owner>/project-2
+  service_b_ref: main
+  service_b_dockerfile: Dockerfile
+  use_gpu_base: false   # or true to use CUDA runtime
+```
+
+If the external repos are private, add a `GH_PAT` secret in this repo with `repo` scope so the workflow can check them out.
